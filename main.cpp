@@ -11,13 +11,15 @@ private:
     string apellido;
     string zona;
     int prioridad;
+    int horaIngreso;
 public:
-    Persona(int d, string n, string a, string z, int p){
+    Persona(int d, string n, string a, string z, int p, int hI){
         dni = d;
         nombre = n;
         apellido = a;
         zona = z;
         prioridad = p;
+        horaIngreso = hI;
     }
     int getDNI(){
         return dni;
@@ -36,6 +38,9 @@ public:
         cout<<"DNI: "<<dni<<endl;
         cout<<"Nombres completos: "<<fullNombres()<<endl;
         cout<<"Nivel de prioridad: "<<prioridad<<endl;
+    }
+    void setPriori(int newP){
+        prioridad = newP
     }
 };
 
@@ -138,7 +143,7 @@ public:
         }
 
         delete[] oldTabla;
-        cout<<"Rehashing completo. Tamaño de nueva tabla: "<<tama<<endl;
+        cout<<"Rehashing completo. TamaÃ±o de nueva tabla: "<<tama<<endl;
     }
 
     float factorCarga(){
@@ -164,12 +169,18 @@ public:
 };
 
 void cargaDeMuchasPersonas(TablaHash* tabla, const string& listaAtendientes){ //https://cplusplus.com/doc/tutorial/files/
-    ifstream archivo(listaAtendientes);
+    ifstream archivo(listaAtendientes); //toma lista de archivo
+    ofstream archivoIDs("IDsRegistrados"); //nuevo archivo para validar atendientes en heaps
 
     if (!archivo.is_open()){
         cout<<"Error critico al abrir archivo "<<listaAtendientes<<". Revisar."<<endl;
         return;
     }
+    if (!archivoIDs.is_open()){
+        cout<<"Error critico en creacion de archivo."<<endl;
+        return;
+    }
+
     int dni, prioridad;
     string nombre, apellido;
 
@@ -197,10 +208,13 @@ void cargaDeMuchasPersonas(TablaHash* tabla, const string& listaAtendientes){ //
         }
         Persona* per = new Persona(dni, nombre, apellido, zona, prioridad);
         if (!tabla->insertarHS(per)){
+            archivoIDs<<dni<<endl; //solo id se guarda
+        } else {
             delete per;
         }
     }
     archivo.close();
+    archivoIDs.close();
     cout<<"Informacion de atendientes exitoso."<<endl;
 
     /* llamado a main, ya sabremos como se hace luego xdddd
@@ -220,14 +234,153 @@ void cargaDeMuchasPersonas(TablaHash* tabla, const string& listaAtendientes){ //
 //----- FIN DE HASHES -----
 
 //----- USO DE HEAPS -----
+class maxHeap{
+private:
+    Persona** heap;
+    int tam;
+    int ultPos;
+public:
+    maxHeap(int n){
+        heap = new Persona*[n+1]; //porque se empieza de 1, no 0
+        tam = n+1;
+        ultPos = 0;
+    }
+    ~maxHeap(){
+        delete[] heap;
+    }
+    bool vacioHP(){ //revisar si esta vacio, no confundir con el otro
+        if(ultPos==0){
+            return true;
+        }
+        return false;
+    }
 
+    void insertarHP(Persona* nuevo){
+        if (ultPos+1 >= tam){
+            cout<<"No se aceptan mas invitado"<<endl;
+            return;
+        }
+        ultPos++;
+        heap[ultPos] = nuevo;
+        int i = ultPos;
+        //int swapCount = 0;
+        while(i>1&&heap[i]->getPriori() > heap[i/2]->getPriori()){
+            swap(heap[i],heap[i/2]);
+            i = i/2;
+            //swapCount++; esto es para contar la cantidad de swaps xd
+        }
+        //cout<<"Usuario agregado"<<endl:
+        //cout<<swapCount<<" cambios hechos"<<endl;
+    }
+
+    bool vaciarHP(){ //este es el otro, este vacia todo el heap, NO CONFUNDIR
+            return ultPos==0;
+    }
+
+    void extraerMaximo(){ //sacar el primero del heap
+        if (vacioHP()){
+            cout<<"Heap vacio :("<<endl;
+            return nullptr;
+        }
+
+        Persona* maximo = heap[1]; //para poder retornar un valor
+        heap[1] = heap[ultPos];
+        ultPos--;
+
+        int i = 1;
+        while (2*i <= ultPos){
+            int hIzq = 2*i;
+            int hDer = 2*i+1;
+            int hMayor = i;
+
+            if (hIzq<=ultPos && heap[hIzq]->getPriori() > heap[hMayor]->getPriori()){
+                hMayor = hIzq;
+            }
+            if (hDer<=ultPos && heap[hDer]->getPriori() > heap[hMayor]->getPriori()){
+                hMayor = hDer;
+            }
+
+            if (hMayor != i){
+                swap(heap[i],heap[hMayor]);
+                pos = hMayor;
+            } else {
+                break;
+            }
+        }
+        return maximo; //el valor returnado
+    }
+
+    void actualizarPriori(int dni, int newPriori){
+        int pos = -1;
+
+        for (int i=1; i<=ultPos; i++){
+            if (heap[i]->getDNI()==dni){
+                pos = i;
+                break;
+            }
+        }
+        if (pos == -1){
+            cout<<"Esta persona no se encuentra en la cola"<<endl;
+            return;
+        }
+        int oldPriori = heap[pos]->getPriori();
+        heap[pos]->setPriori(newPriori);
+
+        if (newPriori > oldPriori){ //usamos pos y no i porque i se uso para el for
+            while (pos>i&&heap[pos]->getPriori() > heap[pos/2]->getPriori()){
+                swap(heap[pos],heap[pos/2]);
+                pos = pos / 2;
+            }
+        } else if(newPriori<oldPriori){
+            while (2*pos <= ultPos){
+                int hIzq = 2*pos;
+                int hDer = 2*pos+1;
+                int hMayor = pos;
+
+                if (hIzq<=ultPos && heap[hIzq]->getPriori() > heap[hMayor]->getPriori()){
+                    hMayor = hIzq;
+                }
+                if (hDer<=ultPos && heap[hDer]->getPriori() > heap[hMayor]->getPriori()){
+                    hMayor = hDer;
+                }
+
+                if (hMayor != i){
+                    swap(heap[i],heap[hMayor]);
+                    pos = hMayor;
+                } else {
+                    break;
+                }
+            }
+        }
+        cout<<"Prioridad actualizada"<<endl;
+    }
+};
+
+void cargarPersonasAgainHeap(maxHeap* heap, TablaHash* tabla, const string& IDsRegistrados){
+    ifstream archivo(IDsRegistrados);
+    if (!archivo.is_open()){
+        cout<<"Error al abrir el archivo de IDs para el heap"<<endl;
+        return;
+    }
+    int dni;
+    while (archivo>>dni){
+        Persona* per = tabla->buscar(dni);
+        if (per != nullptr){
+            heap->insertarHP(per);
+        } else {
+            cout<<"DNI "<<dni<<" no fue encontrado en la tabla. Denegado."<<endl;
+        }
+    }
+    archivo.close();
+    cout<<"Verificacion completa"<<endl;
+}
 
 //----- FIN DE HEAPS -----
 
-//----- USO DE AVL ó RED BLACK TREES -----
+//----- USO DE AVL Ã³ RED BLACK TREES -----
 
 
-//----- FIN DE USO DE AVL ó RED BLACK TREES -----
+//----- FIN DE USO DE AVL Ã³ RED BLACK TREES -----
 
 int main()
 {
