@@ -335,7 +335,6 @@ public:
     }
 };
 
-// Modifico la función para recibir también el heap
 void cargaDeMuchasPersonas(TablaHash* tabla, const string& listaAtendientes){
     ifstream archivo(listaAtendientes); //toma lista de archivo
     ofstream archivoIDs("IDsRegistrados"); //nuevo archivo para validar atendientes en heaps
